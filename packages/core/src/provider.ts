@@ -1,4 +1,4 @@
-import type { Message, ToolDefinition, StreamEvent } from "./types.js";
+import type { Message, ToolDefinition, StreamEvent } from "./types.ts";
 
 export interface Provider {
     stream(
