@@ -1,0 +1,23 @@
+{
+  "name": "@chime/providers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@chime/core": "workspace:*",
+    "@openrouter/sdk": "^1.2.136"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^26.6.1",
+    "tsx": "^4.23.13",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.7"
+  }
+}
