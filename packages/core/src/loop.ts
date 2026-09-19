@@ -13,7 +13,7 @@ export class AgentLoop {
     this.messages.push({ role: "system", content: systemPrompt });
   }
 
-  async run(userInput: string): Promise<string> {
+  async run(userInput: string, onText?: (text: string) => void): Promise<string> {
     this.messages.push({ role: "user", content: userInput });
 
     let finalText = "";
@@ -31,6 +31,7 @@ export class AgentLoop {
       for await (const event of this.provider.stream(this.messages, toolDefs)) {
         if (event.type === "text") {
           text += event.text;
+          onText?.(event.text);
         } else if (event.type === "tool_call") {
           toolCalls.push(event.toolCall);
         }

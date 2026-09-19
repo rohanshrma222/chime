@@ -51,4 +51,17 @@ describe("AgentLoop", () => {
     expect(result).toBe("Done!");
     expect(loop.messages.find((m) => m.role === "tool")?.content).toBe("echo: hi");
   });
+
+  it("streams text chunks to onText as they arrive", async () => {
+    const provider = scriptedProvider([
+      [{ type: "text", text: "Hel" }, { type: "text", text: "lo" }],
+    ]);
+    const loop = new AgentLoop(provider, new ToolRegistry(), "You are a test agent.");
+    const chunks: string[] = [];
+
+    const result = await loop.run("Hi", (text) => chunks.push(text));
+
+    expect(chunks).toEqual(["Hel", "lo"]);
+    expect(result).toBe("Hello");
+  });
 });

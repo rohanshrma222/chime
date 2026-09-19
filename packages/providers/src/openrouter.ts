@@ -3,7 +3,7 @@ import type { EventStream } from "@openrouter/sdk/lib/event-streams.js";
 import type { ChatMessages, ChatStreamChunk } from "@openrouter/sdk/models";
 import type { Message, Provider, StreamEvent, ToolDefinition } from "@chime/core";
 
-const MODEL = "poolside/laguna-s-2.1:free";
+const MODEL = "cohere/north-mini-code:free";
 
 interface PendingToolCall {
   id: string;
