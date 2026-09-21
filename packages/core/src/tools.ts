@@ -1,4 +1,4 @@
-import type { ZodSchema } from "zod";
+ import type { ZodSchema } from "zod";
 
 export interface ToolContext {
     cwd: string;
@@ -8,6 +8,8 @@ export interface Tool<TArgs = any> {
     name: string;
     description: string;
     inputSchema: ZodSchema<TArgs>;
+    requiresConfirmation?: boolean;
+    preview?(args: TArgs, ctx: ToolContext): string | Promise<string>;
     execute(args: TArgs, ctx: ToolContext): Promise<string>;
 }
 

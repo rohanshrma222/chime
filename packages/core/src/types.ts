@@ -4,12 +4,14 @@ export interface Message {
   role: Role;
   content: string;
   toolCallId?: string;
+  toolCalls?: ToolCall[];
 }
 
 export interface ToolCall {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  parseError?: string;
 }
 
 export interface ToolDefinition {
