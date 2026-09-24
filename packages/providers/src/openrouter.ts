@@ -18,9 +18,36 @@ function toChatMessage(message: Message): ChatMessages {
     case "user":
       return { role: "user", content: message.content };
     case "assistant":
-      return { role: "assistant", content: message.content };
+      return {
+        role: "assistant",
+        content: message.content,
+        ...(message.toolCalls?.length
+          ? {
+              toolCalls: message.toolCalls.map((call) => ({
+                id: call.id,
+                type: "function" as const,
+                function: { name: call.name, arguments: JSON.stringify(call.input) },
+              })),
+            }
+          : {}),
+      };
     case "tool":
       return { role: "tool", content: message.content, toolCallId: message.toolCallId ?? "" };
+  }
+}
+
+function parseArguments(text: string): { input: Record<string, unknown>; parseError?: string } {
+  if (text === "") {
+    return { input: {} };
+  }
+  try {
+    const value: unknown = JSON.parse(text);
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      return { input: value as Record<string, unknown> };
+    }
+    return { input: {}, parseError: "the arguments must be a JSON object" };
+  } catch (error) {
+    return { input: {}, parseError: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -77,14 +104,7 @@ export class OpenRouterProvider implements Provider {
     }
 
     for (const call of pending.values()) {
-      yield {
-        type: "tool_call",
-        toolCall: {
-          id: call.id,
-          name: call.name,
-          input: call.arguments ? JSON.parse(call.arguments) : {},
-        },
-      };
+      yield { type: "tool_call", toolCall: { id: call.id, name: call.name, ...parseArguments(call.arguments) } };
     }
   }
 }
