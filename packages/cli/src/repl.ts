@@ -1,14 +1,45 @@
-import { createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import { stdin, stdout } from "node:process";
 import chalk from "chalk";
-import type { AgentLoop } from "@chime/core";
+import type { AgentLoop, ConfirmFn, ToolCall } from "@chime/core";
 
-export async function startRepl(agent: AgentLoop): Promise<void> {
+export interface ReplHooks {
+  confirm: ConfirmFn;
+  onToolCall: (call: ToolCall) => void;
+}
+
+function ask(rl: Interface, prompt: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const onClose = () => resolve(null);
+    rl.once("close", onClose);
+    rl.question(prompt, (answer) => {
+      rl.off("close", onClose);
+      resolve(answer);
+    });
+  });
+}
+
+function shorten(text: string, max = 120): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+export async function startRepl(createAgent: (hooks: ReplHooks) => AgentLoop): Promise<void> {
   const rl = createInterface({ input: stdin, output: stdout });
 
   let closed = false;
   rl.on("close", () => {
     closed = true;
+  });
+
+  const agent = createAgent({
+    confirm: async ({ toolName, summary }) => {
+      stdout.write(`\n${chalk.yellow(`[${toolName}] wants to:`)}\n${summary}\n`);
+      const answer = await ask(rl, chalk.yellow("Allow? [y/N] "));
+      return answer !== null && ["y", "yes"].includes(answer.trim().toLowerCase());
+    },
+    onToolCall: (call) => {
+      stdout.write(chalk.dim(`\n↳ ${call.name} ${shorten(JSON.stringify(call.input))}\n`));
+    },
   });
 
   console.log(chalk.dim('Chime — type a message. "exit" or Ctrl+C to quit.\n'));

@@ -10,6 +10,7 @@
   "dependencies": {
     "@chime/core": "workspace:*",
     "@chime/providers": "workspace:*",
+    "@chime/tools": "workspace:*",
     "chalk": "^6.0.0",
     "commander": "^15.0.0"
   },

@@ -26,6 +26,9 @@ importers:
       '@chime/providers':
         specifier: workspace:*
         version: link:../providers
+      '@chime/tools':
+        specifier: workspace:*
+        version: link:../tools
       chalk:
         specifier: ^6.0.0
         version: 6.0.0
