@@ -6,9 +6,13 @@ import type { AgentLoop, ConfirmFn, ToolCall } from "@chime/core";
 export interface ReplHooks {
   confirm: ConfirmFn;
   onToolCall: (call: ToolCall) => void;
+  signal: AbortSignal;
 }
 
-function ask(rl: Interface, prompt: string): Promise<string | null> {
+function ask(rl: Interface, prompt: string, isClosed: () => boolean): Promise<string | null> {
+  if (isClosed()) {
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
     const onClose = () => resolve(null);
     rl.once("close", onClose);
@@ -25,21 +29,24 @@ function shorten(text: string, max = 120): string {
 
 export async function startRepl(createAgent: (hooks: ReplHooks) => AgentLoop): Promise<void> {
   const rl = createInterface({ input: stdin, output: stdout });
+  const controller = new AbortController();
 
   let closed = false;
   rl.on("close", () => {
     closed = true;
+    controller.abort();
   });
 
   const agent = createAgent({
     confirm: async ({ toolName, summary }) => {
       stdout.write(`\n${chalk.yellow(`[${toolName}] wants to:`)}\n${summary}\n`);
-      const answer = await ask(rl, chalk.yellow("Allow? [y/N] "));
+      const answer = await ask(rl, chalk.yellow("Allow? [y/N] "), () => closed);
       return answer !== null && ["y", "yes"].includes(answer.trim().toLowerCase());
     },
     onToolCall: (call) => {
       stdout.write(chalk.dim(`\n↳ ${call.name} ${shorten(JSON.stringify(call.input))}\n`));
     },
+    signal: controller.signal,
   });
 
   console.log(chalk.dim('Chime — type a message. "exit" or Ctrl+C to quit.\n'));

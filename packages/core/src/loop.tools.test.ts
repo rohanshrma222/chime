@@ -185,4 +185,28 @@ describe("AgentLoop tool handling", () => {
     const loop = new AgentLoop(provider, registry, "sys", { maxRounds: 3 });
     await expect(loop.run("go")).rejects.toThrow(/3 rounds/);
   });
+
+  it("stops between rounds once aborted, instead of calling the provider again", async () => {
+    const controller = new AbortController();
+    let streamCalls = 0;
+    const provider: Provider = {
+      async *stream() {
+        streamCalls += 1;
+        if (streamCalls > 1) {
+          throw new Error("stream should not be called again after abort");
+        }
+        yield toolCall("echo", { text: "x" });
+      },
+    };
+    const registry = new ToolRegistry();
+    registry.register(echoTool().tool);
+
+    const loop = new AgentLoop(provider, registry, "sys", {
+      signal: controller.signal,
+      onToolCall: () => controller.abort(),
+    });
+
+    await expect(loop.run("go")).rejects.toThrow(/Aborted/);
+    expect(streamCalls).toBe(1);
+  });
 });

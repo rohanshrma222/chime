@@ -15,6 +15,7 @@ export interface AgentLoopOptions {
   confirm?: ConfirmFn;
   onToolCall?: (call: ToolCall) => void;
   maxRounds?: number;
+  signal?: AbortSignal;
 }
 
 export class AgentLoop {
@@ -35,6 +36,10 @@ export class AgentLoop {
     const maxRounds = this.options.maxRounds ?? 20;
 
     for (let round = 0; round < maxRounds; round++) {
+      if (this.options.signal?.aborted) {
+        throw new Error("Aborted.");
+      }
+
       const toolDefs = this.tools.list().map((tool) => {
         const { $schema: _ignored, ...schema } = z.toJSONSchema(tool.inputSchema);
         return { name: tool.name, description: tool.description, inputSchema: schema };
