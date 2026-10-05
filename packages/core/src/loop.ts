@@ -8,7 +8,10 @@ export interface ConfirmRequest {
   summary: string;
 }
 
-export type ConfirmFn = (request: ConfirmRequest) => Promise<boolean>;
+/** "aborted" means the session ended (e.g. Ctrl+C) — distinct from an explicit "no", which just denies this one action. */
+export type ConfirmOutcome = "approved" | "denied" | "aborted";
+
+export type ConfirmFn = (request: ConfirmRequest) => Promise<ConfirmOutcome>;
 
 export interface AgentLoopOptions {
   cwd?: string;
@@ -95,17 +98,31 @@ export class AgentLoop {
 
     const ctx = { cwd: this.options.cwd ?? process.cwd() };
 
-    try {
-      if (tool.requiresConfirmation) {
-        if (!this.options.confirm) {
-          return `Error: "${call.name}" needs the user's confirmation, but no confirmation handler is configured.`;
-        }
-        const summary = tool.preview ? await tool.preview(parsed.data, ctx) : JSON.stringify(parsed.data);
-        const approved = await this.options.confirm({ toolName: tool.name, summary });
-        if (!approved) {
-          return "The user denied this action. Do not retry it; ask the user what they want instead.";
-        }
+    if (tool.requiresConfirmation) {
+      if (!this.options.confirm) {
+        return `Error: "${call.name}" needs the user's confirmation, but no confirmation handler is configured.`;
       }
+
+      let summary: string;
+      try {
+        summary = tool.preview ? await tool.preview(parsed.data, ctx) : JSON.stringify(parsed.data);
+      } catch (error) {
+        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
+
+      // Deliberately outside the try/catch below: "aborted" must propagate out of
+      // run() and stop the whole turn, not be swallowed into a tool-result string
+      // the way a denial or a tool execution error is.
+      const outcome = await this.options.confirm({ toolName: tool.name, summary });
+      if (outcome === "aborted") {
+        throw new Error("Aborted.");
+      }
+      if (outcome === "denied") {
+        return "The user denied this action. Do not retry it; ask the user what they want instead.";
+      }
+    }
+
+    try {
       return await tool.execute(parsed.data, ctx);
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : String(error)}`;

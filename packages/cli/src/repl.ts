@@ -41,7 +41,10 @@ export async function startRepl(createAgent: (hooks: ReplHooks) => AgentLoop): P
     confirm: async ({ toolName, summary }) => {
       stdout.write(`\n${chalk.yellow(`[${toolName}] wants to:`)}\n${summary}\n`);
       const answer = await ask(rl, chalk.yellow("Allow? [y/N] "), () => closed);
-      return answer !== null && ["y", "yes"].includes(answer.trim().toLowerCase());
+      if (answer === null) {
+        return "aborted";
+      }
+      return ["y", "yes"].includes(answer.trim().toLowerCase()) ? "approved" : "denied";
     },
     onToolCall: (call) => {
       stdout.write(chalk.dim(`\n↳ ${call.name} ${shorten(JSON.stringify(call.input))}\n`));

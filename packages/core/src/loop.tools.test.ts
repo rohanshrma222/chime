@@ -138,26 +138,59 @@ describe("AgentLoop tool handling", () => {
   it("only runs a confirmation-gated tool when the user approves", async () => {
     const script = () => scriptedProvider([[toolCall("echo", { text: "x" })], [{ type: "text", text: "end" }]]);
 
-    const denied = echoTool({ requiresConfirmation: true, preview: (args) => `say ${args.text}` });
-    const deniedRegistry = new ToolRegistry();
-    deniedRegistry.register(denied.tool);
-    const requests: string[] = [];
-    const deniedLoop = new AgentLoop(script(), deniedRegistry, "sys", {
-      confirm: async (request) => {
-        requests.push(`${request.toolName}: ${request.summary}`);
-        return false;
-      },
-    });
-    await deniedLoop.run("go");
-    expect(requests).toEqual(["echo: say x"]);
-    expect(denied.executed).toEqual([]);
-    expect(toolMessage(deniedLoop)).toContain("denied");
-
     const approved = echoTool({ requiresConfirmation: true });
     const approvedRegistry = new ToolRegistry();
     approvedRegistry.register(approved.tool);
-    await new AgentLoop(script(), approvedRegistry, "sys", { confirm: async () => true }).run("go");
+    await new AgentLoop(script(), approvedRegistry, "sys", { confirm: async () => "approved" }).run("go");
     expect(approved.executed).toEqual(["x"]);
+  });
+
+  it("an explicit 'no' denies just that one action and lets the conversation continue normally", async () => {
+    const provider = scriptedProvider([[toolCall("echo", { text: "x" })], [{ type: "text", text: "end" }]]);
+    const { tool, executed } = echoTool({ requiresConfirmation: true, preview: (args) => `say ${args.text}` });
+    const registry = new ToolRegistry();
+    registry.register(tool);
+    const requests: string[] = [];
+
+    const loop = new AgentLoop(provider, registry, "sys", {
+      confirm: async (request) => {
+        requests.push(`${request.toolName}: ${request.summary}`);
+        return "denied";
+      },
+    });
+
+    const result = await loop.run("go");
+
+    expect(requests).toEqual(["echo: say x"]);
+    expect(executed).toEqual([]); // the tool never ran
+    expect(toolMessage(loop)).toContain("denied");
+    expect(result).toBe("end"); // the loop kept going and got a real final answer
+  });
+
+  it("'aborted' stops the loop immediately instead of denying-and-continuing, no matter which tool was asked", async () => {
+    const provider: Provider = {
+      async *stream() {
+        // A different tool each time, to prove this isn't special-cased to one name.
+        yield toolCall("run_shell_like", { command: "rm -rf /" });
+      },
+    };
+    const registry = new ToolRegistry();
+    const dangerous = { executed: false };
+    registry.register({
+      name: "run_shell_like",
+      description: "stands in for a dangerous tool",
+      inputSchema: z.object({ command: z.string() }),
+      requiresConfirmation: true,
+      async execute() {
+        dangerous.executed = true;
+        return "ran";
+      },
+    });
+
+    const loop = new AgentLoop(provider, registry, "sys", { confirm: async () => "aborted" });
+
+    await expect(loop.run("go")).rejects.toThrow(/Aborted/);
+    expect(dangerous.executed).toBe(false);
   });
 
   it("refuses a confirmation-gated tool when no confirm handler is configured", async () => {
