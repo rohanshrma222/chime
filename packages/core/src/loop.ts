@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { trimToBudget } from "./context-manager.ts";
 import type { Message, ToolCall } from "./types.ts";
 import type { Provider } from "./provider.ts";
 import type { ToolRegistry } from "./tools.ts";
@@ -19,10 +20,14 @@ export interface AgentLoopOptions {
   onToolCall?: (call: ToolCall) => void;
   maxRounds?: number;
   signal?: AbortSignal;
+  /** Resume an existing conversation instead of starting fresh with just the system prompt. */
+  initialMessages?: Message[];
+  /** Approximate token budget for what gets sent to the provider each turn. Default: 8000. */
+  maxContextTokens?: number;
 }
 
 export class AgentLoop {
-  messages: Message[] = [];
+  messages: Message[];
 
   constructor(
     private provider: Provider,
@@ -30,13 +35,14 @@ export class AgentLoop {
     systemPrompt: string,
     private options: AgentLoopOptions = {},
   ) {
-    this.messages.push({ role: "system", content: systemPrompt });
+    this.messages = options.initialMessages ? [...options.initialMessages] : [{ role: "system", content: systemPrompt }];
   }
 
   async run(userInput: string, onText?: (text: string) => void): Promise<string> {
     this.messages.push({ role: "user", content: userInput });
 
     const maxRounds = this.options.maxRounds ?? 20;
+    const maxContextTokens = this.options.maxContextTokens ?? 8000;
 
     for (let round = 0; round < maxRounds; round++) {
       if (this.options.signal?.aborted) {
@@ -48,10 +54,12 @@ export class AgentLoop {
         return { name: tool.name, description: tool.description, inputSchema: schema };
       });
 
+      const context = trimToBudget(this.messages, maxContextTokens);
+
       let text = "";
       const toolCalls: ToolCall[] = [];
 
-      for await (const event of this.provider.stream(this.messages, toolDefs)) {
+      for await (const event of this.provider.stream(context, toolDefs)) {
         if (event.type === "text") {
           text += event.text;
           onText?.(event.text);

@@ -242,4 +242,54 @@ describe("AgentLoop tool handling", () => {
     await expect(loop.run("go")).rejects.toThrow(/Aborted/);
     expect(streamCalls).toBe(1);
   });
+
+  it("resumes from initialMessages instead of starting a fresh system message", async () => {
+    const provider = scriptedProvider([[{ type: "text", text: "continuing" }]]);
+    const registry = new ToolRegistry();
+    const priorMessages = [
+      { role: "system" as const, content: "sys" },
+      { role: "user" as const, content: "earlier question" },
+      { role: "assistant" as const, content: "earlier answer" },
+    ];
+
+    const loop = new AgentLoop(provider, registry, "sys", { initialMessages: priorMessages });
+
+    expect(loop.messages).toEqual(priorMessages);
+    await loop.run("follow up");
+
+    expect(loop.messages[0]).toEqual(priorMessages[0]);
+    expect(loop.messages).toHaveLength(5); // 3 prior + new user + new assistant
+    expect(loop.messages.some((m) => m.content === "earlier question")).toBe(true);
+  });
+
+  it("trims what's sent to the provider once the context budget is exceeded", async () => {
+    let lastSeenMessageCount = 0;
+    const provider: Provider = {
+      async *stream(messages) {
+        lastSeenMessageCount = messages.length;
+        yield { type: "text", text: "ok" };
+      },
+    };
+    const registry = new ToolRegistry();
+
+    const bigPriorMessages = [
+      { role: "system" as const, content: "sys" },
+      { role: "user" as const, content: "x".repeat(2000) },
+      { role: "assistant" as const, content: "x".repeat(2000) },
+      { role: "user" as const, content: "x".repeat(2000) },
+      { role: "assistant" as const, content: "x".repeat(2000) },
+    ];
+
+    const loop = new AgentLoop(provider, registry, "sys", {
+      initialMessages: bigPriorMessages,
+      maxContextTokens: 200, // tiny on purpose, to force trimming
+    });
+
+    await loop.run("new question");
+
+    // full history keeps growing...
+    expect(loop.messages.length).toBe(bigPriorMessages.length + 2);
+    // ...but the provider only saw a trimmed slice, not the whole thing
+    expect(lastSeenMessageCount).toBeLessThan(loop.messages.length);
+  });
 });
