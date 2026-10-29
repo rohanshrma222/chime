@@ -1,12 +1,17 @@
 import { createInterface, type Interface } from "node:readline";
 import { stdin, stdout } from "node:process";
 import chalk from "chalk";
-import type { AgentLoop, ConfirmFn, ToolCall } from "@chime/core";
+import type { AgentLoop, ConfirmFn, Message, ToolCall } from "@chime/core";
 
 export interface ReplHooks {
   confirm: ConfirmFn;
   onToolCall: (call: ToolCall) => void;
   signal: AbortSignal;
+}
+
+export interface ReplCallbacks {
+  /** Called after each turn (success or error) with the full message history so far. */
+  onTurnEnd?: (messages: Message[]) => void | Promise<void>;
 }
 
 function ask(rl: Interface, prompt: string, isClosed: () => boolean): Promise<string | null> {
@@ -27,7 +32,10 @@ function shorten(text: string, max = 120): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-export async function startRepl(createAgent: (hooks: ReplHooks) => AgentLoop): Promise<void> {
+export async function startRepl(
+  createAgent: (hooks: ReplHooks) => AgentLoop,
+  callbacks: ReplCallbacks = {},
+): Promise<void> {
   const rl = createInterface({ input: stdin, output: stdout });
   const controller = new AbortController();
 
@@ -67,6 +75,8 @@ export async function startRepl(createAgent: (hooks: ReplHooks) => AgentLoop): P
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         stdout.write(chalk.red(`\n[error] ${message}`));
+      } finally {
+        await callbacks.onTurnEnd?.(agent.messages);
       }
       stdout.write("\n\n");
     }
