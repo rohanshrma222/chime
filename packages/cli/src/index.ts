@@ -11,6 +11,7 @@ import {
   type Message,
 } from "@chime/core";
 import { OpenRouterProvider } from "@chime/providers";
+import { runResearch, withRetry } from "@chime/research";
 import { createDefaultRegistry } from "@chime/tools";
 import { startRepl } from "./repl.ts";
 
@@ -46,6 +47,16 @@ program
     for (const s of sessions) {
       console.log(`${chalk.cyan(s.id)}  ${s.messageCount} msgs  ${chalk.dim(s.cwd)}  (updated ${s.updatedAt})`);
     }
+  });
+
+program
+  .command("research <question>")
+  .description("Answer a multi-step question by researching the web (and this codebase)")
+  .action(async (question: string) => {
+    const provider = withRetry(new OpenRouterProvider());
+    const result = await runResearch(provider, question);
+    console.log(result.answer);
+    console.log(chalk.dim(`\n(scratchpad: ${result.scratchpadPath})`));
   });
 
 program

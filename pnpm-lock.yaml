@@ -26,6 +26,9 @@ importers:
       '@chime/providers':
         specifier: workspace:*
         version: link:../providers
+      '@chime/research':
+        specifier: workspace:*
+        version: link:../research
       '@chime/tools':
         specifier: workspace:*
         version: link:../tools
@@ -125,6 +128,31 @@ importers:
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
+
+  packages/research:
+    dependencies:
+      '@chime/core':
+        specifier: workspace:*
+        version: link:../core
+      '@chime/tools':
+        specifier: workspace:*
+        version: link:../tools
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.6.1
+        version: 26.6.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.1)(vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13))
 
   packages/tools:
     dependencies:
