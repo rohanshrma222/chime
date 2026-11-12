@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@chime/core": "workspace:*",
+    "@chime/rlm": "workspace:*",
     "@chime/tools": "workspace:*",
     "zod": "^4.6.5"
   },

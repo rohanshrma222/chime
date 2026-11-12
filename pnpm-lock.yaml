@@ -134,12 +134,34 @@ importers:
       '@chime/core':
         specifier: workspace:*
         version: link:../core
+      '@chime/rlm':
+        specifier: workspace:*
+        version: link:../rlm
       '@chime/tools':
         specifier: workspace:*
         version: link:../tools
       zod:
         specifier: ^4.6.5
         version: 4.6.5
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.6.1
+        version: 26.6.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.1)(vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13))
+
+  packages/rlm:
+    dependencies:
+      '@chime/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -2093,7 +2115,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
