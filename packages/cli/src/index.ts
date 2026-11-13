@@ -13,6 +13,7 @@ import {
 import { OpenRouterProvider } from "@chime/providers";
 import { runResearch, withRetry } from "@chime/research";
 import { createDefaultRegistry } from "@chime/tools";
+import { allTasks, buildReport, formatHumanReadable, runEval } from "@chime/evals";
 import { startRepl } from "./repl.ts";
 
 try {
@@ -57,6 +58,24 @@ program
     const result = await runResearch(provider, question);
     console.log(result.answer);
     console.log(chalk.dim(`\n(scratchpad: ${result.scratchpadPath})`));
+  });
+
+program
+  .command("eval")
+  .description("Run the coding benchmark against the current agent and print a score report")
+  .option("--task <name>", "run only this one task (by name)")
+  .action(async (options: { task?: string }) => {
+    const tasks = options.task ? allTasks.filter((t) => t.name === options.task) : allTasks;
+    if (options.task && tasks.length === 0) {
+      throw new Error(`No eval task named "${options.task}". Known tasks: ${allTasks.map((t) => t.name).join(", ")}`);
+    }
+
+    const provider = withRetry(new OpenRouterProvider());
+    const results = await runEval(provider, tasks);
+    const report = buildReport(results);
+
+    console.log(formatHumanReadable(report));
+    console.log(chalk.dim(`\n${JSON.stringify(report)}`));
   });
 
 program

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@chime/core": "workspace:*",
+    "@chime/evals": "workspace:*",
     "@chime/providers": "workspace:*",
     "@chime/research": "workspace:*",
     "@chime/tools": "workspace:*",

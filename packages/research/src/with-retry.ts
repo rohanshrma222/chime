@@ -4,6 +4,19 @@ function isRateLimited(error: unknown): boolean {
   return typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 429;
 }
 
+/**
+ * A 429 can mean two very different things: a per-minute burst limit (worth waiting out —
+ * it resets in seconds) or a per-day quota (won't recover within any retry budget this
+ * process could reasonably wait — it resets hours from now). Retrying the latter just
+ * burns `retries * delayMs` doing nothing; detected via OpenRouter's own message text
+ * since the response carries no structured "which kind of 429 is this" field.
+ */
+export function isDailyQuotaExhausted(error: unknown): boolean {
+  if (!isRateLimited(error)) return false;
+  const message = error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? "");
+  return /per-day|daily/i.test(message);
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -21,7 +34,7 @@ export function withRetry(provider: Provider, { retries = 3, delayMs = 20_000 } 
           yield* provider.stream(messages, tools);
           return;
         } catch (error) {
-          if (!isRateLimited(error) || attempt >= retries) {
+          if (isDailyQuotaExhausted(error) || !isRateLimited(error) || attempt >= retries) {
             throw error;
           }
           await wait(delayMs);
